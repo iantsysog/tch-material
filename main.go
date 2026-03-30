@@ -44,7 +44,7 @@ var (
 	pdfRewriter  = coregex.MustCompile(`^https?://(?:.+)\.ykt\.cbern\.com\.cn/(.+)/([\da-f-]{36})\.pkg/(.+)\.pdf$`)
 	syncMatch    = coregex.MustCompile(`^https?://[^/]+/syncClassroom/basicWork/detail`)
 	invalidChars = coregex.MustCompile(`[/:?"<>|]`)
-	tokenPtr     atomic.Pointer[string]
+	authValue    atomic.Pointer[string]
 	transport    = &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -98,19 +98,21 @@ type httpError int
 
 func (e httpError) Error() string { return fmt.Sprintf("HTTP %d", e) }
 
-func token() string {
-	if p := tokenPtr.Load(); p != nil {
-		return `MAC id="` + *p + `",nonce="0",mac="0"`
+func authHeaderValue() string {
+	if v := authValue.Load(); v != nil {
+		return *v
 	}
 	return authMissing
 }
 
 func setToken(s string) {
-	if s = strings.TrimSpace(s); s == "" {
-		tokenPtr.Store(nil)
-	} else {
-		tokenPtr.Store(&s)
+	s = strings.TrimSpace(s)
+	if s == "" {
+		authValue.Store(nil)
+		return
 	}
+	v := `MAC id="` + s + `",nonce="0",mac="0"`
+	authValue.Store(&v)
 }
 
 func isRetryStatus(code int) bool {
@@ -140,7 +142,7 @@ func req(ctx context.Context, client *http.Client, method, raw string, body []by
 		if err != nil {
 			return err
 		}
-		req.Header.Set(authHeader, token())
+		req.Header.Set(authHeader, authHeaderValue())
 		req.Header.Set("Accept", "application/json")
 		if body != nil {
 			req.Header.Set("Content-Type", "application/json")
@@ -178,11 +180,11 @@ func resolveStorage(raw string, authed bool) string {
 	if raw == "" {
 		return ""
 	}
-	if after, ok :=strings.CutPrefix(raw, "cs_path:${ref-path}"); ok  {
+	if after, ok := strings.CutPrefix(raw, "cs_path:${ref-path}"); ok {
 		if authed {
 			return "https://r1-ndr-private.ykt.cbern.com.cn" + after
 		}
-		return "https://c1.ykt.cbern.com.cn" + strings.TrimPrefix(raw, "cs_path:${ref-path}")
+		return "https://c1.ykt.cbern.com.cn" + after
 	}
 	if authed {
 		return raw
@@ -199,7 +201,7 @@ func resolveStorage(raw string, authed bool) string {
 }
 
 func pickPDF(items []tiItem) string {
-	authed := tokenPtr.Load() != nil
+	authed := authValue.Load() != nil
 	for pass := range 2 {
 		for _, it := range items {
 			if it.Format != "pdf" || pass == 0 && !it.Source {
@@ -218,7 +220,10 @@ func pickPDF(items []tiItem) string {
 	return ""
 }
 
-func decode[T any](r io.Reader, out *T) bool { return json.NewDecoder(r).Decode(out) == nil }
+func decode[T any](r io.Reader, out *T) bool {
+	d := json.NewDecoder(r)
+	return d.Decode(out) == nil
+}
 
 func resolveFromListing(ctx context.Context, cid string) string {
 	resp, err := req(ctx, apiClient, http.MethodGet, fmt.Sprintf("https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/special_edu/thematic_course/%s/resources/list.json", cid), nil)
@@ -426,7 +431,7 @@ func contentLength(ctx context.Context, raw string) int64 {
 	}
 	defer drain(resp.Body)
 	n, _ := strconv.ParseInt(resp.Header.Get("Content-Length"), 10, 64)
-	return max64(n, 0)
+	return max(n, 0)
 }
 
 type progress struct {
@@ -490,7 +495,7 @@ func download(ctx context.Context, raw, dest string, overwrite bool) error {
 			_ = os.Remove(name)
 		}
 	}()
-	p := &progress{w: os.Stderr, label: dest + ":", total: max64(resp.ContentLength, 0)}
+	p := &progress{w: os.Stderr, label: dest + ":", total: max(resp.ContentLength, 0)}
 	if p.total == 0 {
 		p.total = contentLength(ctx, raw)
 	}
@@ -603,11 +608,4 @@ func main() {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-func max64(a, b int64) int64 {
-	if a > b {
-		return a
-	}
-	return b
 }
