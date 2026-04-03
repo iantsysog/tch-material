@@ -261,8 +261,9 @@ func resolveOne(ctx context.Context, raw string) *ResolvedAsset {
 	if typ == "" {
 		typ = "assets_document"
 	}
+	isSpecialEdu := typ == "thematic_course" || syncMatch.MatchString(raw)
 	base := "https://s-file-1.ykt.cbern.com.cn/zxx/ndrv2/resources/tch_material/details/%s.json"
-	if typ == "thematic_course" || syncMatch.MatchString(raw) {
+	if isSpecialEdu {
 		base = "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/special_edu/resources/details/%s.json"
 	}
 	resp, err := req(ctx, apiClient, http.MethodGet, fmt.Sprintf(base, cid), nil)
@@ -278,13 +279,24 @@ func resolveOne(ctx context.Context, raw string) *ResolvedAsset {
 		return nil
 	}
 	pdf := pickPDF(d.Items)
-	if pdf == "" && typ == "thematic_course" {
+	if pdf == "" && isSpecialEdu {
 		pdf = resolveFromListing(ctx, cid)
 	}
 	if pdf == "" {
 		return nil
 	}
 	return &ResolvedAsset{Asset: Asset{URL: pdf, CID: cid, Title: strings.TrimSpace(d.Title)}, RawURL: raw}
+}
+
+func truncateRunes(s string, limit int) string {
+	if limit <= 0 {
+		return ""
+	}
+	r := []rune(s)
+	if len(r) <= limit {
+		return s
+	}
+	return string(r[:limit])
 }
 
 func cleanName(s string) string {
@@ -294,8 +306,8 @@ func cleanName(s string) string {
 	if s == "" {
 		return "download"
 	}
-	if len(s) > nameLimit {
-		s = strings.TrimRight(s[:nameLimit], ". ")
+	if len([]rune(s)) > nameLimit {
+		s = strings.TrimRight(truncateRunes(s, nameLimit), ". ")
 		if s == "" {
 			return "download"
 		}
@@ -558,6 +570,9 @@ func runDownload(ctx context.Context, token, fromFile, output, outputDir string,
 	assets, failed := resolveAll(ctx, urls)
 	if len(assets) == 0 && len(failed) > 0 {
 		return errors.New("failed to resolve any URLs")
+	}
+	if len(assets) > 1 && output != "" {
+		return errors.New("--output only supports a single URL; use --output-dir for multiple URLs")
 	}
 	for _, a := range assets {
 		dest := makeName(a.Asset)

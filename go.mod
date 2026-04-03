@@ -5,7 +5,7 @@ go 1.26.1
 require github.com/sethvargo/go-retry v0.3.0
 
 require (
-	github.com/coregx/coregex v0.12.20
+	github.com/coregx/coregex v0.12.21
 	github.com/peterbourgon/ff/v4 v4.0.0-beta.1
 )
 

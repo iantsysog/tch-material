@@ -1,7 +1,7 @@
 github.com/coregx/ahocorasick v0.2.1 h1:JsZ5Rb32/SzGiGBl3vIwA8DAnY0+E6BLBhj+4HZsAbo=
 github.com/coregx/ahocorasick v0.2.1/go.mod h1:SDcS9KTiwLP8FHNpYSO3Q3mRqrK8SYJAYpygrhcIils=
-github.com/coregx/coregex v0.12.20 h1:XA/W0MNtJMqkbYx3hAZKZyAOnuZDNLpJ44NqDavrOgA=
-github.com/coregx/coregex v0.12.20/go.mod h1:dsQgGpWvPcDeywbz/BK/YYyRcGhlMoXoCdlOWNqCR6Q=
+github.com/coregx/coregex v0.12.21 h1:U0xmOSVoW1d32qXEGfhtzMZs1YRUu2tCfD+93B6QAYo=
+github.com/coregx/coregex v0.12.21/go.mod h1:dsQgGpWvPcDeywbz/BK/YYyRcGhlMoXoCdlOWNqCR6Q=
 github.com/pelletier/go-toml/v2 v2.0.9 h1:uH2qQXheeefCCkuBBSLi7jCiSmj3VRh2+Goq2N7Xxu0=
 github.com/pelletier/go-toml/v2 v2.0.9/go.mod h1:tJU2Z3ZkXwnxa4DPO899bsyIoywizdUvyaeZurnPPDc=
 github.com/peterbourgon/ff/v4 v4.0.0-beta.1 h1:hV8qRu3V7YfiSMsBSfPfdcznAvPQd3jI5zDddSrDoUc=
